@@ -121,3 +121,120 @@ docker push evaldoavelar/servidor:teste
     ``` shell
     docker run -d --rm --name ubuntu4 --network host ubuntu:modificado
     ```
+
+ ### Docker-compose
+
+ * Criar Serviços onde vai ser informado os parâmetros para levantar o conatainer, como se fosse feito com o docker run na linha de comando:
+
+``` yaml
+version: "3"
+services:
+  
+  back-end:
+    build: 
+      context: .
+      dockerfile: Dockerfile.back-end
+    image: evaldoavelar/echo-back-end:1.0
+    container_name: back-end
+    networks: 
+      - echo
+    ports: 
+      - "8000:80"
+
+  front-end:
+    build: 
+      dockerfile: Dockerfile.front-end
+      context: .
+    image: evaldoavelar/echo-front-end:1.2
+    container_name: front-end
+    environment: 
+      - API_BASE_URL=http://127.0.0.1:8000/
+    networks:
+      - echo
+    ports:  
+     - "80:80"
+
+networks: 
+  echo:
+    driver: bridge
+```    
+
+* Depois de alterar o Dockerfile, passar o parametro **--build** para o docker compose para que seja gerado a imagem
+
+``` shell
+docker-compose up --build
+```
+
+
+#### Outras opções
+``` yaml
+version: "3"
+
+services: 
+
+  #nome do serviço levantado pelo docker-compose
+  db:
+    #nome da imagem a ser usada 
+    image: mysql:5.7
+
+    #nome do conainer
+    container_name: mysql-5.7
+
+    # habiltar interação via shell
+    tty: true 
+    
+    # executado depois do entrypoint
+    command: --default-authentication-plugin=mysql_native_password
+    
+    # mapeamento de volumes
+    volumes: 
+      - ./mysql-files:/var/lib/mysql 
+
+    #restartar o conatainer sempre que ele cair  
+    restart: always 
+    
+    # variáveis de ambiente da imagem
+    environment: 
+      - MYSQL_ROOT_PASSWORD=mestre
+      - MYSQL_DATABASE=teste
+
+
+    #redes que o conatiner vai acessar  
+    networks: 
+      - net-node
+
+    # mapeamento de porta
+    ports: 
+      - 3306:3306
+
+# criar networks
+networks: 
+  #nome da rede
+  net-node:
+    #driver da rede
+    driver: bridge    
+```
+
+
+### Dependência de Container
+
+Para aguardar até que um conatiner esteja pronto, pode se usar scripts como o dockerize no Dockerfile
+https://github.com/jwilder/dockerize
+
+
+* Dockerfile
+
+``` yaml
+RUN apt-get update && apt-get install -y wget
+
+ENV DOCKERIZE_VERSION v0.6.1
+RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+    && tar -C /usr/local/bin -xzvf dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+    && rm dockerize-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+
+
+CMD dockerize -wait tcp://back-end:80 -timeout 5000s  
+```
+
+  * Docker Compose
+  
